@@ -1,7 +1,4 @@
-///
-/// Vec<(azimuth, distance)>
 pub fn ydlidarx2(data: &mut [u8]) -> Vec<(f64, f64)> {
-    let rounf_num = 10_f64.powf(6.0);
 
     let mut points = Vec::with_capacity(300);
 
@@ -12,9 +9,9 @@ pub fn ydlidarx2(data: &mut [u8]) -> Vec<(f64, f64)> {
     let angel_lsn = f[3] as f64 - 1.0;
     let f_len = l.len() - 1;
 
-    let mut angel_fsa = (as_u32_be(&[f[5], f[4]]) >> 1) as f64 / 64.0;
+    let mut angel_fsa: f64 = (as_u32_be(&[f[5], f[4]]) >> 1) as f64 / 64.0;
 
-    let mut angel_lsa = (as_u32_be(&[f[7], f[6]]) >> 1) as f64 / 64.0;
+    let mut angel_lsa: f64 = (as_u32_be(&[f[7], f[6]]) >> 1) as f64 / 64.0;
 
     let distance_1 = as_u32_be(&[l[1], l[0]]) as f64;
 
@@ -23,7 +20,7 @@ pub fn ydlidarx2(data: &mut [u8]) -> Vec<(f64, f64)> {
     angel_fsa += ang_correct(distance_1);
     angel_lsa += ang_correct(distance_lsa);
 
-    let pre_angle = ((angel_lsa - angel_fsa) * rounf_num).round() / rounf_num;
+    let pre_angle = angel_lsa - angel_fsa;
 
     let mut count = 0;
     let mut angle_i = 0.0;
@@ -39,10 +36,9 @@ pub fn ydlidarx2(data: &mut [u8]) -> Vec<(f64, f64)> {
             None => &0_u8,
         };
 
-
         distance_i = as_u32_be(&[*t1, *t2]) as f64 / 4.0;
 
-        angle_i = ((((pre_angle / (angel_lsn)) * (i as f64)) + angel_fsa) * 1.0).round() / 1.0;
+        angle_i = ((pre_angle / (angel_lsn)) * ((i - 1) as f64) ) + angel_fsa;
 
         if distance_i == 0.0 {
             angle_i = 0.0;
@@ -63,24 +59,23 @@ pub fn ydlidarx2(data: &mut [u8]) -> Vec<(f64, f64)> {
 
 #[inline]
 fn ang_correct(distance: f64) -> f64 {
-    let rounf_num = 10_f64.powf(4.0);
-    let mut ang_correct_i = 0.0;
-    if distance != 0.0 {
-        ang_correct_i = (((21.8 * (155.3 - distance) / (155.3 * distance)).atan())
-            * (180.0 / std::f64::consts::PI)
-            * rounf_num)
-            .round()
-            / rounf_num;
-    }
+    //let rounf_num = 10_f64.powf(4.0);
+    let ang_correct_i = if distance != 0.0 {
+        ((21.8 * (155.3 - distance) / (155.3 * distance)).atan()) * (180.0 / std::f64::consts::PI)
+    } else {
+        0.0_f64
+    };
 
     ang_correct_i
 }
-
 
 #[inline]
 fn as_u32_be(array: &[u8; 2]) -> u32 {
     ((array[0] as u32) << 8) | ((array[1] as u32) << 0)
 }
+
+
+
 
 #[cfg(test)]
 mod tests {
